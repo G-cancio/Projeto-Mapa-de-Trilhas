@@ -1,0 +1,23 @@
+<resources>
+
+    <string name="app_name">MapaDeTrilhas</string>
+
+    <string name="tipoMapa_txt">Tipo de Mapa</string>
+    <string name="marcadorVetorial_txt">Vetorial</string>
+    <string name="marcadorSatelite_txt">Satélite</string>
+    <string name="formaNavegacao_txt">Forma de Navegação</string>
+    <string name="marcadorNorthUp">North Up</string>
+    <string name="marcadorCourseUp">Course Up</string>
+    <string name="telaRegistrar_txt">Registrar Trilha</string>
+    <string name="telaConsultar_txt">Consultar Trilha</string>
+    <string name="sairAplicacao_txt">Sair</string>
+
+    <string name="registrarTrilha_txt">Registrar</string>
+    <string name="voltarRegistrarTelaConfiguracao_txt">Voltar</string>
+
+    <string name="apagar_txt">Apagar Trilha</string>
+    <string name="editar_txt">Editar Trilhar</string>
+    <string name="consultar_txt">Consultar Trilha</string>
+    <string name="voltarVisualizarTelaConfiguracao_txt">Voltar</string>
+
+</resources>
