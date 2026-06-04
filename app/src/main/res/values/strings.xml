@@ -2,22 +2,30 @@
 
     <string name="app_name">MapaDeTrilhas</string>
 
+    <string name="telaRegistrar_txt">Registrar Trilha</string>
+    <string name="telaConsultar_txt">Consultar Trilha</string>
+    <string name="telaConfiguracao_txt">Configuração</string>
+    <string name="sairAplicacao_txt">Sair</string>
+
     <string name="tipoMapa_txt">Tipo de Mapa</string>
     <string name="marcadorVetorial_txt">Vetorial</string>
     <string name="marcadorSatelite_txt">Satélite</string>
     <string name="formaNavegacao_txt">Forma de Navegação</string>
-    <string name="marcadorNorthUp">North Up</string>
-    <string name="marcadorCourseUp">Course Up</string>
-    <string name="telaRegistrar_txt">Registrar Trilha</string>
-    <string name="telaConsultar_txt">Consultar Trilha</string>
-    <string name="sairAplicacao_txt">Sair</string>
+    <string name="marcadorNorthUp_txt">North Up</string>
+    <string name="marcadorCourseUp_txt">Course Up</string>
+    <string name="salvarConfiguracao_txt">Salvar</string>
+
+    <string name="voltarConfiguracaoTelaMain_txt">Voltar</string>
+
 
     <string name="registrarTrilha_txt">Registrar</string>
-    <string name="voltarRegistrarTelaConfiguracao_txt">Voltar</string>
+    <string name="voltarRegistrarTelaMain_txt">Voltar</string>
+    <string name="voltarMapsTelaRegistrar_txt">Voltar</string>
 
     <string name="apagar_txt">Apagar Trilha</string>
     <string name="editar_txt">Editar Trilhar</string>
     <string name="consultar_txt">Consultar Trilha</string>
-    <string name="voltarVisualizarTelaConfiguracao_txt">Voltar</string>
+    <string name="voltarVisualizarTelaMain_txt">Voltar</string>
+    <string name="title_activity_maps">MapsActivity</string>
 
 </resources>

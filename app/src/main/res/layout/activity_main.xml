@@ -5,53 +5,53 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".VisualizarTrilha">
+    tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/button_voltar_visualizar"
+        android:id="@+id/button_tela_consultar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/voltarVisualizarTelaMain_txt"
+        android:text="@string/telaConsultar_txt"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.95"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.941" />
+        app:layout_constraintVertical_bias="0.303" />
 
     <Button
-        android:id="@+id/button_consultar"
+        android:id="@+id/button_tela_registrar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/consultar_txt"
+        android:text="@string/telaRegistrar_txt"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.049"
+        app:layout_constraintHorizontal_bias="0.49"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.824" />
+        app:layout_constraintVertical_bias="0.439" />
 
     <Button
-        android:id="@+id/button_editar"
+        android:id="@+id/button_sair_aplicacao"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/editar_txt"
+        android:text="@string/sairAplicacao_txt"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.049"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.941" />
+        app:layout_constraintVertical_bias="0.976" />
 
     <Button
-        android:id="@+id/button_apagar"
+        android:id="@+id/button_tela_configuracao"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/apagar_txt"
+        android:text="@string/telaConfiguracao_txt"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.95"
+        app:layout_constraintHorizontal_bias="0.495"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.824" />
+        app:layout_constraintVertical_bias="0.584" />
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -31,20 +31,20 @@ public class VisualizarTrilha extends AppCompatActivity implements View.OnClickL
     public void onClick(View v) {
         int id = v.getId();
 
-        if (v.getId() == R.id.button_consultar) {
+        if (id == R.id.button_consultar) {
 
         }
 
-        if (v.getId() == R.id.button_editar) {
+        if (id == R.id.button_editar) {
 
         }
 
-        if (v.getId() == R.id.button_apagar) {
+        if (id == R.id.button_apagar) {
 
         }
 
-        if (v.getId() == R.id.button_voltar_visualizar) {
-            Intent i = new Intent(this, Configuracao.class);
+        if (id == R.id.button_voltar_visualizar) {
+            Intent i = new Intent(this, MainActivity.class);
             startActivity(i);
         }
     }

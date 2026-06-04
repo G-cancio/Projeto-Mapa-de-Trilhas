@@ -1,5 +1,6 @@
 package com.example.mapadetrilhas;
 
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -7,7 +8,17 @@ import android.widget.Button;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+
 public class RegistrarTrilha extends AppCompatActivity implements View.OnClickListener {
+
+    private static final int REQUEST_LOCATION_UPDATES = 1;
+
+    private FusedLocationProviderClient fusedLocationProviderClient;
+    private LocationRequest locationRequest;
+    private LocationCallback locationCallback;
 
     private String nomeTrilha;
     private int dataInicio;
@@ -33,13 +44,13 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
     public void onClick(View v) {
         int id = v.getId();
 
-        if (v.getId() == R.id.button_registrar) {
-
+        if (id == R.id.button_registrar) {
+            Intent i = new Intent(this, MapsActivity.class);
+            startActivity(i);
         }
 
-        if (v.getId() == R.id.button_voltar_registrar) {
-            Intent i = new Intent(this, Configuracao.class);
-            startActivity(i);
+        if (id == R.id.button_voltar_registrar) {
+            finish();
         }
     }
 }
