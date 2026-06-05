@@ -17,10 +17,8 @@
 
     <string name="voltarConfiguracaoTelaMain_txt">Voltar</string>
 
-
-    <string name="registrarTrilha_txt">Registrar</string>
+    <string name="registrarTrilha_txt">Iniciar Registro</string>
     <string name="voltarRegistrarTelaMain_txt">Voltar</string>
-    <string name="voltarMapsTelaRegistrar_txt">Voltar</string>
 
     <string name="apagar_txt">Apagar Trilha</string>
     <string name="editar_txt">Editar Trilhar</string>
