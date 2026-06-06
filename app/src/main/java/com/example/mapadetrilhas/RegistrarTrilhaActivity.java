@@ -43,13 +43,15 @@ import com.google.android.gms.location.Priority;
 import java.util.ArrayList;
 import java.util.Locale;
 
-public class RegistrarTrilha extends AppCompatActivity implements View.OnClickListener, OnMapReadyCallback {
+public class RegistrarTrilhaActivity extends AppCompatActivity implements View.OnClickListener, OnMapReadyCallback {
 
     private static final int REQUEST_LOCATION_UPDATES = 1;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
+
+    TrilhasDB trilhadb;
 
     private GoogleMap mMap;
     private Marker marcadorUsuario;
@@ -75,13 +77,9 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
     private Handler cronometroHandler;
     private Runnable cronometroRunnable;
 
-    // Variáveis exigidas pelo modelo de dados (banco de dados)
-    private String nomeTrilha;
-    private int dataInicio;
-    private int dataFim;
-    private int horaInicio;
-    private int horaFim;
-    private int velocidadeMedia;
+    // Variáveis globais para reter o tempo inicial entre os cliques do botão registrar
+    private int dataInicioSalva = 0;
+    private int horaInicioSalva = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -134,7 +132,7 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
         mMap = googleMap;
         aplicarConfiguracoesMapa();
 
-        // Prepara o ícone personalizado (sua carinha limpa em PNG) com tamanho controlado
+        // Prepara o ícone personalizado com tamanho controlado
         Bitmap imagemOriginal = BitmapFactory.decodeResource(getResources(), R.drawable.marcador_usuario);
         Bitmap imagemRedimensionada = Bitmap.createScaledBitmap(imagemOriginal, 120, 120, false);
         iconePersonalizado = BitmapDescriptorFactory.fromBitmap(imagemRedimensionada);
@@ -157,9 +155,7 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
         LatLng coordenadasReais = new LatLng(location.getLatitude(), location.getLongitude());
         float precisaoReal = location.getAccuracy();
 
-        // Se o marcador não existe, cria. Se já existe, atualiza a posição no mapa
         if (marcadorUsuario == null) {
-            // Nota: Sem o anchor(0.5f, 0.5f) para manter o visual espetado que você preferiu
             marcadorUsuario = mMap.addMarker(new MarkerOptions()
                     .position(coordenadasReais)
                     .title("Sua Posição")
@@ -179,7 +175,6 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
             circuloPrecisao.setRadius(precisaoReal);
         }
 
-        // Aplica as preferências salvas do usuário (NorthUp ou CourseUp)
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String tipoNavegacao = prefs.getString("tipo_navegacao", "northup");
 
@@ -189,9 +184,9 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
                         .zoom(mMap.getCameraPosition().zoom);
 
         if (tipoNavegacao.equals("courseup") && location.hasBearing()) {
-            cameraBuilder.bearing(location.getBearing()); // Rotaciona o mapa conforme o deslocamento
+            cameraBuilder.bearing(location.getBearing());
         } else {
-            cameraBuilder.bearing(0f); // Trava o norte estrutural para cima
+            cameraBuilder.bearing(0f);
         }
 
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraBuilder.build()));
@@ -201,7 +196,6 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
         LatLng novoPonto = new LatLng(localizacaoAtual.getLatitude(), localizacaoAtual.getLongitude());
         listaPontosTrilha.add(novoPonto);
 
-        // Desenha a Polyline (percurso/rastro da trilha em tempo real)
         if (rotaTrilha == null) {
             PolylineOptions opcoesLinha = new PolylineOptions()
                     .addAll(listaPontosTrilha)
@@ -213,7 +207,6 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
             rotaTrilha.setPoints(listaPontosTrilha);
         }
 
-        // 1. PROCESSAMENTO DA VELOCIDADE (Converte m/s para km/h)
         float velocidadeKmH = 0f;
         if (localizacaoAtual.hasSpeed()) {
             velocidadeKmH = localizacaoAtual.getSpeed() * 3.6f;
@@ -225,7 +218,6 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
             tvVelocidadeMax.setText(String.format(Locale.getDefault(), "Vel. Máxima: %.1f km/h", velocidadeMaximaRegistrada));
         }
 
-        // 2. PROCESSAMENTO DA DISTÂNCIA TOTAL ACUMULADA
         if (localizacaoAnterior != null) {
             float distanciaEntrePontos = localizacaoAnterior.distanceTo(localizacaoAtual);
             distanciaTotalPercorrida += distanciaEntrePontos;
@@ -280,7 +272,9 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
                 velocidadeMaximaRegistrada = 0f;
                 segundosTranscorridos = 0;
 
-                // Reseta a linha do mapa se houver um percurso de teste anterior
+                dataInicioSalva = obterDataAtualComoInt();
+                horaInicioSalva = obterHoraAtualComoInt();
+
                 listaPontosTrilha.clear();
                 if (rotaTrilha != null) {
                     rotaTrilha.remove();
@@ -295,9 +289,67 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
                 gravandoTrilha = false;
                 pararCronometro();
                 buttonRegistrar.setText("Iniciar Registro");
-                Toast.makeText(this, "Trilha finalizada! Pronto para salvar.", Toast.LENGTH_SHORT).show();
 
-                // [O SQLite entrará estruturalmente nesta seção futuramente]
+                // 1. Captura o momento exato do FIM antes de abrir a caixinha
+                final int dataFimSalva = obterDataAtualComoInt();
+                final int horaFimSalva = obterHoraAtualComoInt();
+
+                // 2. Criar uma caixinha de alerta com um campo de texto (EditText) de forma dinâmica
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("Salvar Trilha");
+                builder.setMessage("Digite um nome para a sua trilha:");
+
+                final android.widget.EditText inputNome = new android.widget.EditText(this);
+                inputNome.setHint("Ex: Caminhada no Parque");
+                builder.setView(inputNome);
+
+                // Botão de Confirmar/Salvar
+                builder.setPositiveButton("Salvar", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        String nomeDigitado = inputNome.getText().toString().trim();
+
+                        if (nomeDigitado.isEmpty()) {
+                            nomeDigitado = "Trilha do dia " + dataFimSalva;
+                        }
+
+                        // 3. Instancia a classe Trilha e popula com os dados coletados
+                        Trilha trilha = new Trilha();
+                        trilha.setNomeTrilha(nomeDigitado);
+                        trilha.setDataInicio(dataInicioSalva);
+                        trilha.setHoraInicio(horaInicioSalva);
+                        trilha.setDataFim(dataFimSalva);
+                        trilha.setHoraFim(horaFimSalva);
+                        trilha.setVelocidadeMaxima(velocidadeMaximaRegistrada);
+
+                        // Cálculo da velocidade média em float estruturado
+                        float velocidadeMediaCalculada = 0f;
+                        if (segundosTranscorridos > 0 && distanciaTotalPercorrida > 0) {
+                            float distanciaEmKm = distanciaTotalPercorrida / 1000f;
+                            float tempoEmHoras = segundosTranscorridos / 3600f;
+                            velocidadeMediaCalculada = distanciaEmKm / tempoEmHoras;
+                        }
+                        trilha.setVelocidadeMedia(velocidadeMediaCalculada);
+
+                        // Grava na tabela do banco de dados
+                        trilhadb = new TrilhasDB(RegistrarTrilhaActivity.this);
+                        trilhadb.salvarTrilha(trilha);
+
+                        Toast.makeText(RegistrarTrilhaActivity.this, "Trilha finalizada! Dados guardados no banco.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                // Botão de Cancelar
+                builder.setNegativeButton("Descartar", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        dialog.cancel();
+                        Toast.makeText(RegistrarTrilhaActivity.this, "Trilha descartada.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                // Mostra a caixinha na tela do celular
+                builder.show();
             }
         }
 
@@ -326,7 +378,6 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
     @Override
     protected void onPause() {
         super.onPause();
-        // Desliga o GPS para preservar a bateria do dispositivo quando fechar/minimizar a tela
         if (fusedLocationProviderClient != null) {
             fusedLocationProviderClient.removeLocationUpdates(locationCallback);
         }
@@ -338,5 +389,21 @@ public class RegistrarTrilha extends AppCompatActivity implements View.OnClickLi
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String tipoMapa = prefs.getString("tipo_mapa", "vetorial");
         mMap.setMapType(tipoMapa.equals("satelite") ? GoogleMap.MAP_TYPE_SATELLITE : GoogleMap.MAP_TYPE_NORMAL);
+    }
+
+    private int obterDataAtualComoInt() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int ano = c.get(java.util.Calendar.YEAR);
+        int mes = c.get(java.util.Calendar.MONTH) + 1;
+        int dia = c.get(java.util.Calendar.DAY_OF_MONTH);
+        return (ano * 10000) + (mes * 100) + dia;
+    }
+
+    private int obterHoraAtualComoInt() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int hora = c.get(java.util.Calendar.HOUR_OF_DAY);
+        int minuto = c.get(java.util.Calendar.MINUTE);
+        int segundo = c.get(java.util.Calendar.SECOND);
+        return (hora * 10000) + (minuto * 100) + segundo;
     }
 }

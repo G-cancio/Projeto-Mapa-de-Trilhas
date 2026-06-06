@@ -9,9 +9,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.gms.maps.GoogleMap;
-
-public class Configuracao extends AppCompatActivity implements View.OnClickListener {
+public class ConfiguracaoActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Switch switchVetorial;
     private Switch switchSatelite;

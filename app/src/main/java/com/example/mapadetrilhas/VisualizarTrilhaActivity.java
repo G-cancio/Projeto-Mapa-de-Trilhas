@@ -7,7 +7,9 @@ import android.widget.Button;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-public class VisualizarTrilha extends AppCompatActivity implements View.OnClickListener {
+public class VisualizarTrilhaActivity extends AppCompatActivity implements View.OnClickListener {
+
+    TrilhasDB trilhadb;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
