@@ -1,53 +1,198 @@
 package com.example.mapadetrilhas;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class VisualizarTrilhaActivity extends AppCompatActivity implements View.OnClickListener {
+import java.util.ArrayList;
+import java.util.Calendar;
 
-    TrilhasDB trilhadb;
+public class VisualizarTrilhaActivity extends AppCompatActivity implements View.OnClickListener, AdapterView.OnItemClickListener {
+
+    private ListView listViewTrilhas;
+    private ArrayList<Trilha> listaTrilhas;
+    private ArrayAdapter<String> adapter;
+    private ArrayList<String> nomesTrilhas;
+    private TrilhasDB trilhasDB;
+    private int posicaoSelecionada = -1;
+
+    private int dataFiltroInicio = 0;
+    private int dataFiltroFim = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_visualizar_trilha);
 
-        Button botaoConsultar = findViewById(R.id.button_consultar);
-        botaoConsultar.setOnClickListener(this);
+        listViewTrilhas = findViewById(R.id.listViewTrilhas);
 
-        Button botaoEditar = findViewById(R.id.button_editar);
-        botaoEditar.setOnClickListener(this);
+        findViewById(R.id.button_consultar).setOnClickListener(this);
+        findViewById(R.id.button_apagar).setOnClickListener(this);
+        findViewById(R.id.button_editar).setOnClickListener(this);
+        findViewById(R.id.button_voltar_visualizar).setOnClickListener(this);
 
-        Button botaoApagar = findViewById(R.id.button_apagar);
-        botaoApagar.setOnClickListener(this);
+        trilhasDB = new TrilhasDB(this);
+        listViewTrilhas.setOnItemClickListener(this);
 
-        Button botaoVoltar = findViewById(R.id.button_voltar_visualizar);
-        botaoVoltar.setOnClickListener(this);
+        carregarListaTrilhas();
+    }
+
+    private void carregarListaTrilhas() {
+        listaTrilhas = trilhasDB.consultarTrilha();
+        nomesTrilhas = new ArrayList<>();
+
+        for (Trilha t : listaTrilhas) {
+            nomesTrilhas.add(t.getNomeTrilha());
+        }
+
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_single_choice, nomesTrilhas);
+        listViewTrilhas.setAdapter(adapter);
+        listViewTrilhas.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+
+        posicaoSelecionada = -1;
+        listViewTrilhas.clearChoices();
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        posicaoSelecionada = position;
     }
 
     @Override
     public void onClick(View v) {
         int id = v.getId();
 
+        // 1. AÇÃO DE CONSULTAR TRILHA SELECIONADA
         if (id == R.id.button_consultar) {
+            if (posicaoSelecionada == -1) {
+                Toast.makeText(this, "Por favor, selecione uma trilha na lista primeiro!", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
+            Trilha trilhaSelecionada = listaTrilhas.get(posicaoSelecionada);
+
+            Intent intentMapa = new Intent(this, RegistrarTrilhaActivity.class);
+            intentMapa.putExtra("id_trilha", trilhaSelecionada.getId());
+            intentMapa.putExtra("nome", trilhaSelecionada.getNomeTrilha());
+            intentMapa.putExtra("data_inicio", trilhaSelecionada.getDataInicio());
+            intentMapa.putExtra("hora_inicio", trilhaSelecionada.getHoraInicio());
+            intentMapa.putExtra("data_fim", trilhaSelecionada.getDataFim());
+            intentMapa.putExtra("hora_fim", trilhaSelecionada.getHoraFim());
+            intentMapa.putExtra("vel_media", trilhaSelecionada.getVelocidadeMedia());
+            intentMapa.putExtra("vel_maxima", trilhaSelecionada.getVelocidadeMaxima());
+
+            startActivity(intentMapa);
         }
 
-        if (id == R.id.button_editar) {
-
-        }
-
+        // 2. AÇÃO DE APAGAR (Com os 3 sub-requisitos da N2)
         if (id == R.id.button_apagar) {
+            String[] opcoesApagar = {
+                    "Apagar trilha selecionada",
+                    "Apagar trilhas por período (intervalo)",
+                    "Apagar TODAS as trilhas"
+            };
 
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Opções de Exclusão");
+            builder.setItems(opcoesApagar, (dialog, which) -> {
+                if (which == 0) {
+                    // Opção 1: Apagar trilha específica
+                    if (posicaoSelecionada == -1) {
+                        Toast.makeText(this, "Selecione uma trilha na lista para apagar!", Toast.LENGTH_LONG).show();
+                    } else {
+                        Trilha alvo = listaTrilhas.get(posicaoSelecionada);
+                        trilhasDB.apagarUmaTrilha(alvo.getId());
+                        Toast.makeText(this, "Trilha removida com sucesso!", Toast.LENGTH_SHORT).show();
+                        carregarListaTrilhas();
+                    }
+                } else if (which == 1) {
+                    // Opção 2: Apagar por período
+                    abrirDefinicaoPeriodo();
+                } else if (which == 2) {
+                    // Opção 3: Apagar todas as trilhas
+                    new AlertDialog.Builder(this)
+                            .setTitle("Confirmação Absoluta")
+                            .setMessage("Tem certeza que deseja limpar TODO o histórico de trilhas?")
+                            .setPositiveButton("Sim, Apagar Tudo", (d, w) -> {
+                                trilhasDB.apagarTodasTrilhas();
+                                Toast.makeText(this, "Todo o banco de dados foi resetado!", Toast.LENGTH_SHORT).show();
+                                carregarListaTrilhas();
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+                }
+            });
+            builder.setNegativeButton("Cancelar", null);
+            builder.show();
         }
 
+        // 3. AÇÃO DE EDITAR NOME DA TRILHA SELECIONADA
+        if (id == R.id.button_editar) {
+            if (posicaoSelecionada == -1) {
+                Toast.makeText(this, "Selecione uma trilha para alterar o nome!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Trilha alvo = listaTrilhas.get(posicaoSelecionada);
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Editar Nome");
+            final android.widget.EditText input = new android.widget.EditText(this);
+            input.setText(alvo.getNomeTrilha());
+            builder.setView(input);
+
+            builder.setPositiveButton("Alterar", (dialog, which) -> {
+                String novoNome = input.getText().toString().trim();
+                if (!novoNome.isEmpty()) {
+                    android.content.ContentValues cv = new android.content.ContentValues();
+                    cv.put("nomeTrilha", novoNome);
+                    trilhasDB.getWritableDatabase().update("trilha", cv, "id = ?", new String[]{String.valueOf(alvo.getId())});
+                    carregarListaTrilhas();
+                    Toast.makeText(VisualizarTrilhaActivity.this, "Nome atualizado!", Toast.LENGTH_SHORT).show();
+                }
+            });
+            builder.setNegativeButton("Cancelar", null);
+            builder.show();
+        }
+
+        // 4. AÇÃO DO BOTÃO VOLTAR
         if (id == R.id.button_voltar_visualizar) {
-            Intent i = new Intent(this, MainActivity.class);
-            startActivity(i);
+            finish();
         }
+    }
+
+    // Método auxiliar para abrir os seletores de data em sequência (Data Início -> Data Fim)
+    private void abrirDefinicaoPeriodo() {
+        Calendar calendar = Calendar.getInstance();
+
+        DatePickerDialog datePickerInicio = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            dataFiltroInicio = (year * 10000) + ((month + 1) * 100) + dayOfMonth;
+
+            DatePickerDialog datePickerFim = new DatePickerDialog(VisualizarTrilhaActivity.this, (viewFim, yearFim, monthFim, dayOfMonthFim) -> {
+                dataFiltroFim = (yearFim * 10000) + ((monthFim + 1) * 100) + dayOfMonthFim;
+
+                if (dataFiltroFim < dataFiltroInicio) {
+                    Toast.makeText(VisualizarTrilhaActivity.this, "Erro: A data final não pode ser menor que a inicial!", Toast.LENGTH_LONG).show();
+                } else {
+                    trilhasDB.apagarTrilhasPorPeriodo(dataFiltroInicio, dataFiltroFim);
+                    Toast.makeText(VisualizarTrilhaActivity.this, "Trilhas do período selecionado foram apagadas!", Toast.LENGTH_SHORT).show();
+                    carregarListaTrilhas();
+                }
+            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+            datePickerFim.setTitle("Selecione a DATA FINAL do período");
+            datePickerFim.show();
+
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+        datePickerInicio.setTitle("Selecione a DATA INICIAL do período");
+        datePickerInicio.show();
     }
 }

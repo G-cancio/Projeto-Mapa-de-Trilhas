@@ -51,67 +51,63 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
 
-    TrilhasDB trilhadb;
+    private TrilhasDB trilhadb;
 
     private GoogleMap mMap;
     private Marker marcadorUsuario;
     private Circle circuloPrecisao;
     private BitmapDescriptor iconePersonalizado;
 
-    // Elementos para desenhar a linha do percurso no mapa
     private Polyline rotaTrilha;
     private ArrayList<LatLng> listaPontosTrilha = new ArrayList<>();
 
-    // Componentes da Interface (Views vinculadas ao seu XML)
     private TextView tvVelocidade, tvVelocidadeMax, tvCronometro, tvDistancia;
-    private Button buttonRegistrar;
+    private Button buttonRegistrar, buttonVoltar;
 
-    // Variáveis de Controle da Trilha Real
     private boolean gravandoTrilha = false;
     private Location localizacaoAnterior = null;
-    private float distanciaTotalPercorrida = 0f; // Em metros
-    private float velocidadeMaximaRegistrada = 0f; // Em km/h
+    private float distanciaTotalPercorrida = 0f;
+    private float velocidadeMaximaRegistrada = 0f;
 
-    // Variáveis do Cronômetro
     private int segundosTranscorridos = 0;
-    private Handler cronometroHandler;
-    private Runnable cronometroRunnable;
-
-    // Variáveis globais para reter o tempo inicial entre os cliques do botão registrar
     private int dataInicioSalva = 0;
     private int horaInicioSalva = 0;
+
+    private int idTrilhaVisualizacao = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_registrar_trilha);
 
-        // Vinculando as Views exatamente com os IDs do seu XML complementar
         tvVelocidade = findViewById(R.id.tvVelocidade);
         tvVelocidadeMax = findViewById(R.id.tvVelocidadeMax);
         tvCronometro = findViewById(R.id.tvCronometro);
         tvDistancia = findViewById(R.id.tvDistancia);
         buttonRegistrar = findViewById(R.id.button_registrar);
+        buttonVoltar = findViewById(R.id.button_voltar_registrar);
 
-        // Configurando os escutadores de clique nos botões do XML
+        trilhadb = new TrilhasDB(this);
+
+        if (getIntent().hasExtra("id_trilha")) {
+            idTrilhaVisualizacao = getIntent().getIntExtra("id_trilha", -1);
+        }
+
         buttonRegistrar.setOnClickListener(this);
-        findViewById(R.id.button_voltar_registrar).setOnClickListener(this);
+        buttonVoltar.setOnClickListener(this);
 
-        // Configuração do motor do GPS (Atualiza a cada 2 segundos se mover pelo menos 5 metros)
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
                 .setMinUpdateIntervalMillis(1000)
                 .setMinUpdateDistanceMeters(5)
                 .build();
 
-        // Callback disparado sempre que o celular se comunica com os satélites de GPS
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
+                if (idTrilhaVisualizacao != -1) return;
                 for (Location location : locationResult.getLocations()) {
                     atualizarPosicaoNoMapa(location);
-
-                    // Os cálculos matemáticos e o desenho da rota só acontecem se o botão registrar estiver ativo
                     if (gravandoTrilha) {
                         calcularDadosDaTrilha(location);
                     }
@@ -119,7 +115,6 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
             }
         };
 
-        // Carrega o fragmento do Google Maps de forma assíncrona
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map_container);
         if (mapFragment != null) {
@@ -132,16 +127,67 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
         mMap = googleMap;
         aplicarConfiguracoesMapa();
 
-        // Prepara o ícone personalizado com tamanho controlado
         Bitmap imagemOriginal = BitmapFactory.decodeResource(getResources(), R.drawable.marcador_usuario);
         Bitmap imagemRedimensionada = Bitmap.createScaledBitmap(imagemOriginal, 120, 120, false);
         iconePersonalizado = BitmapDescriptorFactory.fromBitmap(imagemRedimensionada);
 
-        // Solicita as permissões em tempo de execução e liga a captação das coordenadas
-        solicitarPermissaoEIniciarGps();
+        if (idTrilhaVisualizacao != -1) {
+            buttonRegistrar.setVisibility(View.GONE);
+
+            String nome = getIntent().getStringExtra("nome");
+            int dataIni = getIntent().getIntExtra("data_inicio", 0);
+            int horaIni = getIntent().getIntExtra("hora_inicio", 0);
+            int dataFim = getIntent().getIntExtra("data_fim", 0);
+            int horaFim = getIntent().getIntExtra("hora_fim", 0);
+
+            float velMedia = getIntent().getFloatExtra("vel_media", 0f);
+            float velMax = getIntent().getFloatExtra("vel_maxima", 0f);
+
+            if (velMax < velMedia) {
+                float temp = velMax;
+                velMax = velMedia;
+                velMedia = temp;
+            }
+
+            String dataStr = String.valueOf(dataIni);
+            String dataFormatada = "00/00/0000";
+            if (dataStr.length() == 8) {
+                dataFormatada = dataStr.substring(6, 8) + "/" + dataStr.substring(4, 6) + "/" + dataStr.substring(0, 4);
+            }
+
+            String horaStr = String.format(Locale.getDefault(), "%06d", horaIni);
+            String horaFormatada = "00:00:00";
+            if (horaStr.length() == 6) {
+                horaFormatada = horaStr.substring(0, 2) + ":" + horaStr.substring(2, 4) + ":" + horaStr.substring(4, 6);
+            }
+
+            int tempoSegundos = calcularDiferencaTempo(horaIni, horaFim);
+            int h = tempoSegundos / 3600;
+            int m = (tempoSegundos % 3600) / 60;
+            int s = tempoSegundos % 60;
+            String duracaoFormatada = String.format(Locale.getDefault(), "%02d:%02d:%02d", h, m, s);
+
+            float tempoEmHoras = tempoSegundos / 3600f;
+            float distanciaCalculadaKm = velMedia * tempoEmHoras;
+            float distanciaEmMetros = distanciaCalculadaKm * 1000f;
+
+            String distFormatada = distanciaEmMetros < 1000 ?
+                    String.format(Locale.getDefault(), "%.0f m", distanciaEmMetros) :
+                    String.format(Locale.getDefault(), "%.2f km", distanciaCalculadaKm);
+
+            tvVelocidade.setText("Trilha: " + nome + "\nData: " + dataFormatada + " às " + horaFormatada);
+            tvVelocidadeMax.setText(String.format(Locale.getDefault(), "Vel. Máx: %.1f km/h | Média: %.1f km/h", velMax, velMedia));
+            tvDistancia.setText("Distância Total: " + distFormatada);
+            tvCronometro.setText("Duração: " + duracaoFormatada);
+
+            carregarRotaHistoricaNoMapa();
+        } else {
+            solicitarPermissaoEIniciarGps();
+        }
     }
 
     private void solicitarPermissaoEIniciarGps() {
+        if (idTrilhaVisualizacao != -1) return;
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_UPDATES);
         } else {
@@ -149,25 +195,41 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
         }
     }
 
+    private void carregarRotaHistoricaNoMapa() {
+        if (mMap == null || idTrilhaVisualizacao == -1) return;
+
+        ArrayList<Waypoint> listaWaypoints = trilhadb.consultarWaypointsDaTrilha(idTrilhaVisualizacao);
+        ArrayList<LatLng> pontosMapa = new ArrayList<>();
+
+        for (Waypoint wp : listaWaypoints) {
+            pontosMapa.add(new LatLng(wp.getLatitude(), wp.getLongitude()));
+        }
+
+        if (!pontosMapa.isEmpty()) {
+            PolylineOptions opcoesLinha = new PolylineOptions().addAll(pontosMapa).width(12f).color(Color.BLUE).geodesic(true);
+            mMap.addPolyline(opcoesLinha);
+
+            LatLng primeiroPonto = pontosMapa.get(0);
+            mMap.addMarker(new MarkerOptions()
+                    .position(primeiroPonto)
+                    .title("Início do Percurso")
+                    .icon(iconePersonalizado));
+
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(primeiroPonto, 17f));
+        } else {
+            Toast.makeText(this, "Nenhuma coordenada de trajeto salva para esta trilha.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void atualizarPosicaoNoMapa(Location location) {
-        if (mMap == null) return;
+        if (mMap == null || idTrilhaVisualizacao != -1) return;
 
         LatLng coordenadasReais = new LatLng(location.getLatitude(), location.getLongitude());
         float precisaoReal = location.getAccuracy();
 
         if (marcadorUsuario == null) {
-            marcadorUsuario = mMap.addMarker(new MarkerOptions()
-                    .position(coordenadasReais)
-                    .title("Sua Posição")
-                    .icon(iconePersonalizado));
-
-            circuloPrecisao = mMap.addCircle(new CircleOptions()
-                    .center(coordenadasReais)
-                    .radius(precisaoReal)
-                    .strokeWidth(2f)
-                    .strokeColor(0xFF007FFF)
-                    .fillColor(0x33007FFF));
-
+            marcadorUsuario = mMap.addMarker(new MarkerOptions().position(coordenadasReais).title("Sua Posição").icon(iconePersonalizado));
+            circuloPrecisao = mMap.addCircle(new CircleOptions().center(coordenadasReais).radius(precisaoReal).strokeWidth(2f).strokeColor(0xFF007FFF).fillColor(0x33007FFF));
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(coordenadasReais, 17f));
         } else {
             marcadorUsuario.setPosition(coordenadasReais);
@@ -178,17 +240,12 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
         String tipoNavegacao = prefs.getString("tipo_navegacao", "northup");
 
-        com.google.android.gms.maps.model.CameraPosition.Builder cameraBuilder =
-                new com.google.android.gms.maps.model.CameraPosition.Builder()
-                        .target(coordenadasReais)
-                        .zoom(mMap.getCameraPosition().zoom);
-
+        com.google.android.gms.maps.model.CameraPosition.Builder cameraBuilder = new com.google.android.gms.maps.model.CameraPosition.Builder().target(coordenadasReais).zoom(mMap.getCameraPosition().zoom);
         if (tipoNavegacao.equals("courseup") && location.hasBearing()) {
             cameraBuilder.bearing(location.getBearing());
         } else {
             cameraBuilder.bearing(0f);
         }
-
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraBuilder.build()));
     }
 
@@ -197,66 +254,86 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
         listaPontosTrilha.add(novoPonto);
 
         if (rotaTrilha == null) {
-            PolylineOptions opcoesLinha = new PolylineOptions()
-                    .addAll(listaPontosTrilha)
-                    .width(10f)
-                    .color(Color.RED)
-                    .geodesic(true);
+            PolylineOptions opcoesLinha = new PolylineOptions().addAll(listaPontosTrilha).width(10f).color(Color.RED).geodesic(true);
             rotaTrilha = mMap.addPolyline(opcoesLinha);
         } else {
             rotaTrilha.setPoints(listaPontosTrilha);
         }
 
-        float velocidadeKmH = 0f;
-        if (localizacaoAtual.hasSpeed()) {
-            velocidadeKmH = localizacaoAtual.getSpeed() * 3.6f;
-        }
-        tvVelocidade.setText(String.format(Locale.getDefault(), "Vel. Instantânea: %.1f km/h", velocidadeKmH));
+        float velocidadKmH = 0f;
+        if (localizacaoAtual.hasSpeed() && localizacaoAtual.getSpeed() > 0) {
+            velocidadKmH = localizacaoAtual.getSpeed() * 3.6f;
+        } else if (localizacaoAnterior != null) {
+            float distFatiada = localizacaoAnterior.distanceTo(localizacaoAtual);
+            long deltaMilli = localizacaoAtual.getTime() - localizacaoAnterior.getTime();
+            float tempoDiferencaSegundos = deltaMilli / 1000f;
 
-        if (velocidadeKmH > velocidadeMaximaRegistrada) {
-            velocidadeMaximaRegistrada = velocidadeKmH;
+            if (tempoDiferencaSegundos > 0.1f) {
+                velocidadKmH = (distFatiada / tempoDiferencaSegundos) * 3.6f;
+            }
+        }
+
+        if (velocidadKmH < 0.5f) {
+            velocidadKmH = 0f;
+        }
+
+        tvVelocidade.setText(String.format(Locale.getDefault(), "Vel. Instantânea: %.1f km/h", velocidadKmH));
+
+        if (velocidadKmH > velocidadeMaximaRegistrada) {
+            velocidadeMaximaRegistrada = velocidadKmH;
             tvVelocidadeMax.setText(String.format(Locale.getDefault(), "Vel. Máxima: %.1f km/h", velocidadeMaximaRegistrada));
         }
 
         if (localizacaoAnterior != null) {
             float distanciaEntrePontos = localizacaoAnterior.distanceTo(localizacaoAtual);
-            distanciaTotalPercorrida += distanciaEntrePontos;
+            if (distanciaEntrePontos > 1.0f && distanciaEntrePontos < 50.0f) {
+                distanciaTotalPercorrida += distanciaEntrePontos;
+            }
 
             if (distanciaTotalPercorrida < 1000) {
                 tvDistancia.setText(String.format(Locale.getDefault(), "Distância Total: %.0f m", distanciaTotalPercorrida));
             } else {
-                float distanciaKm = distanciaTotalPercorrida / 1000f;
-                tvDistancia.setText(String.format(Locale.getDefault(), "Distância Total: %.2f km", distanciaKm));
+                tvDistancia.setText(String.format(Locale.getDefault(), "Distância Total: %.2f km", distanciaTotalPercorrida / 1000f));
             }
         }
-
         localizacaoAnterior = localizacaoAtual;
     }
 
-    private void iniciarCronometro() {
-        cronometroHandler = new Handler(Looper.getMainLooper());
-        cronometroRunnable = new Runnable() {
-            @Override
-            public void run() {
-                segundosTranscorridos++;
-
-                int horas = segundosTranscorridos / 3600;
-                int minutos = (segundosTranscorridos % 3600) / 60;
-                int secs = segundosTranscorridos % 60;
-
-                String tempoFormatado = String.format(Locale.getDefault(), "Tempo: %02d:%02d:%02d", horas, minutos, secs);
-                tvCronometro.setText(tempoFormatado);
-
-                cronometroHandler.postDelayed(this, 1000);
-            }
-        };
-        cronometroHandler.postDelayed(cronometroRunnable, 1000);
+    private void pararCronometro() {
+        cronvalHandler.removeCallbacks(cronSimpleRunnable);
     }
 
-    private void pararCronometro() {
-        if (cronometroHandler != null && cronometroRunnable != null) {
-            cronometroHandler.removeCallbacks(cronometroRunnable);
+    private final Handler cronvalHandler = new Handler(Looper.getMainLooper());
+    private final Runnable cronSimpleRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!gravandoTrilha) return;
+            segundosTranscorridos++;
+            int horas = segundosTranscorridos / 3600;
+            int minutos = (segundosTranscorridos % 3600) / 60;
+            int secs = segundosTranscorridos % 60;
+            tvCronometro.setText(String.format(Locale.getDefault(), "Tempo: %02d:%02d:%02d", horas, minutos, secs));
+            cronvalHandler.postDelayed(this, 1000);
         }
+    };
+
+    private void resetarInterfaceEMapa() {
+        gravandoTrilha = false;
+        localizacaoAnterior = null;
+        distanciaTotalPercorrida = 0f;
+        velocidadeMaximaRegistrada = 0f;
+        segundosTranscorridos = 0;
+        listaPontosTrilha.clear();
+
+        if (rotaTrilha != null) { rotaTrilha.remove(); rotaTrilha = null; }
+        if (marcadorUsuario != null) { marcadorUsuario.remove(); marcadorUsuario = null; }
+        if (circuloPrecisao != null) { circuloPrecisao.remove(); circuloPrecisao = null; }
+
+        tvVelocidade.setText("Vel. Instantânea: 0,0 km/h");
+        tvVelocidadeMax.setText("Vel. Máxima: 0,0 km/h");
+        tvDistancia.setText("Distância Total: 0 m");
+        tvCronometro.setText("Tempo: 00:00:00");
+        buttonRegistrar.setText("Iniciar Registro");
     }
 
     @Override
@@ -265,90 +342,94 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
 
         if (id == R.id.button_registrar) {
             if (!gravandoTrilha) {
-                // Ação: LIGAR O GRAVADOR DA TRILHA
                 gravandoTrilha = true;
                 localizacaoAnterior = null;
                 distanciaTotalPercorrida = 0f;
                 velocidadeMaximaRegistrada = 0f;
                 segundosTranscorridos = 0;
+                listaPontosTrilha.clear();
 
                 dataInicioSalva = obterDataAtualComoInt();
                 horaInicioSalva = obterHoraAtualComoInt();
 
-                listaPontosTrilha.clear();
-                if (rotaTrilha != null) {
-                    rotaTrilha.remove();
-                    rotaTrilha = null;
+                // ADICIONADO: Captura imediata da posição atual como 1º ponto para testes estáticos
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
+                        if (location != null && listaPontosTrilha.isEmpty()) {
+                            LatLng pontoInicial = new LatLng(location.getLatitude(), location.getLongitude());
+                            listaPontosTrilha.add(pontoInicial);
+                        }
+                    });
                 }
 
-                iniciarCronometro();
+                cronvalHandler.postDelayed(cronSimpleRunnable, 1000);
+
                 buttonRegistrar.setText("Parar Registro");
-                Toast.makeText(this, "Monitoramento da trilha iniciado!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Monitoramento iniciado!", Toast.LENGTH_SHORT).show();
             } else {
-                // Ação: DESLIGAR O GRAVADOR DA TRILHA
                 gravandoTrilha = false;
                 pararCronometro();
-                buttonRegistrar.setText("Iniciar Registro");
 
-                // 1. Captura o momento exato do FIM antes de abrir a caixinha
                 final int dataFimSalva = obterDataAtualComoInt();
                 final int horaFimSalva = obterHoraAtualComoInt();
 
-                // 2. Criar uma caixinha de alerta com um campo de texto (EditText) de forma dinâmica
+                // AJUSTADO: Se mesmo com a injeção inicial a lista falhar, evita persistência vazia de segurança
+                if (listaPontosTrilha.isEmpty()) {
+                    Toast.makeText(this, "Aguardando sinal válido de GPS para gerar coordenadas.", Toast.LENGTH_LONG).show();
+                    resetarInterfaceEMapa();
+                    return;
+                }
+
                 androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
                 builder.setTitle("Salvar Trilha");
                 builder.setMessage("Digite um nome para a sua trilha:");
 
                 final android.widget.EditText inputNome = new android.widget.EditText(this);
-                inputNome.setHint("Ex: Caminhada no Parque");
+                inputNome.setHint("Ex: Corrida Matinal");
                 builder.setView(inputNome);
 
-                // Botão de Confirmar/Salvar
-                builder.setPositiveButton("Salvar", new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        String nomeDigitado = inputNome.getText().toString().trim();
-
-                        if (nomeDigitado.isEmpty()) {
-                            nomeDigitado = "Trilha do dia " + dataFimSalva;
-                        }
-
-                        // 3. Instancia a classe Trilha e popula com os dados coletados
-                        Trilha trilha = new Trilha();
-                        trilha.setNomeTrilha(nomeDigitado);
-                        trilha.setDataInicio(dataInicioSalva);
-                        trilha.setHoraInicio(horaInicioSalva);
-                        trilha.setDataFim(dataFimSalva);
-                        trilha.setHoraFim(horaFimSalva);
-                        trilha.setVelocidadeMaxima(velocidadeMaximaRegistrada);
-
-                        // Cálculo da velocidade média em float estruturado
-                        float velocidadeMediaCalculada = 0f;
-                        if (segundosTranscorridos > 0 && distanciaTotalPercorrida > 0) {
-                            float distanciaEmKm = distanciaTotalPercorrida / 1000f;
-                            float tempoEmHoras = segundosTranscorridos / 3600f;
-                            velocidadeMediaCalculada = distanciaEmKm / tempoEmHoras;
-                        }
-                        trilha.setVelocidadeMedia(velocidadeMediaCalculada);
-
-                        // Grava na tabela do banco de dados
-                        trilhadb = new TrilhasDB(RegistrarTrilhaActivity.this);
-                        trilhadb.salvarTrilha(trilha);
-
-                        Toast.makeText(RegistrarTrilhaActivity.this, "Trilha finalizada! Dados guardados no banco.", Toast.LENGTH_SHORT).show();
+                builder.setPositiveButton("Salvar", (dialog, which) -> {
+                    String nomeDigitado = inputNome.getText().toString().trim();
+                    if (nomeDigitado.isEmpty()) {
+                        nomeDigitado = "Trilha do dia " + dataFimSalva;
                     }
+
+                    Trilha trilha = new Trilha();
+                    trilha.setNomeTrilha(nomeDigitado);
+                    trilha.setDataInicio(dataInicioSalva);
+                    trilha.setHoraInicio(horaInicioSalva);
+                    trilha.setDataFim(dataFimSalva);
+                    trilha.setHoraFim(horaFimSalva);
+
+                    float velocidadeMediaCalculada = 0f;
+                    if (segundosTranscorridos > 0 && distanciaTotalPercorrida > 0) {
+                        velocidadeMediaCalculada = (distanciaTotalPercorrida / 1000f) / (segundosTranscorridos / 3600f);
+                    }
+                    trilha.setVelocidadeMedia(velocidadeMediaCalculada);
+
+                    if (velocidadeMaximaRegistrada < velocidadeMediaCalculada) {
+                        velocidadeMaximaRegistrada = velocidadeMediaCalculada;
+                    }
+                    trilha.setVelocidadeMaxima(velocidadeMaximaRegistrada);
+
+                    long longIdTrilha = trilhadb.salvarTrilha(trilha);
+                    int idTrilhaGerada = (int) longIdTrilha;
+
+                    for (LatLng latLng : listaPontosTrilha) {
+                        Waypoint wp = new Waypoint(idTrilhaGerada, latLng.latitude, latLng.longitude);
+                        trilhadb.salvarWaypoint(wp);
+                    }
+
+                    Toast.makeText(RegistrarTrilhaActivity.this, "Trilha e coordenadas salvas com sucesso!", Toast.LENGTH_SHORT).show();
+                    resetarInterfaceEMapa();
                 });
 
-                // Botão de Cancelar
-                builder.setNegativeButton("Descartar", new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        dialog.cancel();
-                        Toast.makeText(RegistrarTrilhaActivity.this, "Trilha descartada.", Toast.LENGTH_SHORT).show();
-                    }
+                builder.setNegativeButton("Descartar", (dialog, which) -> {
+                    dialog.cancel();
+                    resetarInterfaceEMapa();
+                    Toast.makeText(RegistrarTrilhaActivity.this, "Trilha descartada.", Toast.LENGTH_SHORT).show();
                 });
 
-                // Mostra a caixinha na tela do celular
                 builder.show();
             }
         }
@@ -370,8 +451,10 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
     protected void onResume() {
         super.onResume();
         aplicarConfiguracoesMapa();
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
+        if (idTrilhaVisualizacao == -1 && mMap != null) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
+            }
         }
     }
 
@@ -393,17 +476,22 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
 
     private int obterDataAtualComoInt() {
         java.util.Calendar c = java.util.Calendar.getInstance();
-        int ano = c.get(java.util.Calendar.YEAR);
-        int mes = c.get(java.util.Calendar.MONTH) + 1;
-        int dia = c.get(java.util.Calendar.DAY_OF_MONTH);
-        return (ano * 10000) + (mes * 100) + dia;
+        return (c.get(java.util.Calendar.YEAR) * 10000) + ((c.get(java.util.Calendar.MONTH) + 1) * 100) + c.get(java.util.Calendar.DAY_OF_MONTH);
     }
 
     private int obterHoraAtualComoInt() {
         java.util.Calendar c = java.util.Calendar.getInstance();
-        int hora = c.get(java.util.Calendar.HOUR_OF_DAY);
-        int minuto = c.get(java.util.Calendar.MINUTE);
-        int segundo = c.get(java.util.Calendar.SECOND);
-        return (hora * 10000) + (minuto * 100) + segundo;
+        return (c.get(java.util.Calendar.HOUR_OF_DAY) * 10000) + (c.get(java.util.Calendar.MINUTE) * 100) + c.get(java.util.Calendar.SECOND);
+    }
+
+    private int calcularDiferencaTempo(int inicio, int fim) {
+        int h1 = inicio / 10000; int m1 = (inicio % 10000) / 100; int s1 = inicio % 100;
+        int h2 = fim / 10000; int m2 = (fim % 10000) / 100; int s2 = fim % 100;
+
+        int totalSegundosInicio = (h1 * 3600) + (m1 * 60) + s1;
+        int totalSegundosFim = (h2 * 3600) + (m2 * 60) + s2;
+
+        int diff = totalSegundosFim - totalSegundosInicio;
+        return diff > 0 ? diff : 1;
     }
 }
