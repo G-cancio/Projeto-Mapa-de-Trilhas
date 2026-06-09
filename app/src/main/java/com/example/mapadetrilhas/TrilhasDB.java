@@ -11,7 +11,7 @@ import java.util.ArrayList;
 public class TrilhasDB extends SQLiteOpenHelper {
 
     private static final String DATABASE = "trilha_database";
-    private static final int VERSION = 2; // Incremetado devido a nova estrutura de tabela
+    private static final int VERSION = 2;
 
     public TrilhasDB(Context context) {
         super(context, DATABASE, null, VERSION);
@@ -19,7 +19,6 @@ public class TrilhasDB extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        // Tabela 1: Armazena os metadados da Trilha
         String create_trilha_table =
                 "CREATE TABLE trilha(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
                         "nomeTrilha TEXT NOT NULL, dataInicio INTEGER NOT NULL, dataFim INTEGER NOT NULL," +
@@ -27,7 +26,6 @@ public class TrilhasDB extends SQLiteOpenHelper {
                         "velocidadeMaxima FLOAT NOT NULL);";
         db.execSQL(create_trilha_table);
 
-        // Tabela 2: Armazena os pontos geográficos mapeados (Relacionamento 1 para Muitos)
         String create_waypoint_table =
                 "CREATE TABLE waypoint(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
                         "idTrilha INTEGER NOT NULL," +
@@ -43,7 +41,6 @@ public class TrilhasDB extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // Salva a trilha e retorna o ID gerado para salvarmos os pontos vinculados a ela
     public long salvarTrilha(Trilha trilha) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -57,7 +54,6 @@ public class TrilhasDB extends SQLiteOpenHelper {
         return db.insert("trilha", null, values);
     }
 
-    // Método para salvar os pontos de localização individualmente no percurso
     public void salvarWaypoint(Waypoint waypoint) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -88,7 +84,6 @@ public class TrilhasDB extends SQLiteOpenHelper {
         return trilhas;
     }
 
-    // Consulta os Waypoints salvos de uma determinada trilha para redesenhar no mapa
     public ArrayList<Waypoint> consultarWaypointsDaTrilha(int idTrilha) {
         ArrayList<Waypoint> pontos = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -118,16 +113,13 @@ public class TrilhasDB extends SQLiteOpenHelper {
         db.execSQL("DELETE FROM trilha");
     }
 
-    // Método novo para apagar trilhas em um intervalo de datas específico (pelo período)
     public void apagarTrilhasPorPeriodo(int dataInicio, int dataFim) {
         SQLiteDatabase db = this.getWritableDatabase();
 
-        // Primeiro deletamos os caminhos (waypoints) das trilhas que estão no período
         String queryWaypoints = "DELETE FROM waypoint WHERE idTrilha IN " +
                 "(SELECT id FROM trilha WHERE dataInicio >= ? AND dataInicio <= ?)";
         db.execSQL(queryWaypoints, new Object[]{dataInicio, dataFim});
 
-        // Depois deletamos as trilhas do período
         db.delete("trilha", "dataInicio >= ? AND dataInicio <= ?", new String[]{String.valueOf(dataInicio), String.valueOf(dataFim)});
     }
 }

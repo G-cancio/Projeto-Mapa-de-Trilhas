@@ -352,7 +352,6 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
                 dataInicioSalva = obterDataAtualComoInt();
                 horaInicioSalva = obterHoraAtualComoInt();
 
-                // ADICIONADO: Captura imediata da posição atual como 1º ponto para testes estáticos
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, location -> {
                         if (location != null && listaPontosTrilha.isEmpty()) {
@@ -373,7 +372,6 @@ public class RegistrarTrilhaActivity extends AppCompatActivity implements View.O
                 final int dataFimSalva = obterDataAtualComoInt();
                 final int horaFimSalva = obterHoraAtualComoInt();
 
-                // AJUSTADO: Se mesmo com a injeção inicial a lista falhar, evita persistência vazia de segurança
                 if (listaPontosTrilha.isEmpty()) {
                     Toast.makeText(this, "Aguardando sinal válido de GPS para gerar coordenadas.", Toast.LENGTH_LONG).show();
                     resetarInterfaceEMapa();

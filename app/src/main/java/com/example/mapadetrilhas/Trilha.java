@@ -1,7 +1,5 @@
 package com.example.mapadetrilhas;
 
-import java.util.List;
-
 public class Trilha {
     private int id;
     private String nomeTrilha;

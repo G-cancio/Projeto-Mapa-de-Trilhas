@@ -70,7 +70,6 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
     public void onClick(View v) {
         int id = v.getId();
 
-        // 1. AÇÃO DE CONSULTAR TRILHA SELECIONADA
         if (id == R.id.button_consultar) {
             if (posicaoSelecionada == -1) {
                 Toast.makeText(this, "Por favor, selecione uma trilha na lista primeiro!", Toast.LENGTH_SHORT).show();
@@ -92,7 +91,6 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
             startActivity(intentMapa);
         }
 
-        // 2. AÇÃO DE APAGAR (Com os 3 sub-requisitos da N2)
         if (id == R.id.button_apagar) {
             String[] opcoesApagar = {
                     "Apagar trilha selecionada",
@@ -104,7 +102,6 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
             builder.setTitle("Opções de Exclusão");
             builder.setItems(opcoesApagar, (dialog, which) -> {
                 if (which == 0) {
-                    // Opção 1: Apagar trilha específica
                     if (posicaoSelecionada == -1) {
                         Toast.makeText(this, "Selecione uma trilha na lista para apagar!", Toast.LENGTH_LONG).show();
                     } else {
@@ -114,10 +111,8 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
                         carregarListaTrilhas();
                     }
                 } else if (which == 1) {
-                    // Opção 2: Apagar por período
                     abrirDefinicaoPeriodo();
                 } else if (which == 2) {
-                    // Opção 3: Apagar todas as trilhas
                     new AlertDialog.Builder(this)
                             .setTitle("Confirmação Absoluta")
                             .setMessage("Tem certeza que deseja limpar TODO o histórico de trilhas?")
@@ -134,7 +129,6 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
             builder.show();
         }
 
-        // 3. AÇÃO DE EDITAR NOME DA TRILHA SELECIONADA
         if (id == R.id.button_editar) {
             if (posicaoSelecionada == -1) {
                 Toast.makeText(this, "Selecione uma trilha para alterar o nome!", Toast.LENGTH_SHORT).show();
@@ -162,13 +156,11 @@ public class VisualizarTrilhaActivity extends AppCompatActivity implements View.
             builder.show();
         }
 
-        // 4. AÇÃO DO BOTÃO VOLTAR
         if (id == R.id.button_voltar_visualizar) {
             finish();
         }
     }
 
-    // Método auxiliar para abrir os seletores de data em sequência (Data Início -> Data Fim)
     private void abrirDefinicaoPeriodo() {
         Calendar calendar = Calendar.getInstance();
 

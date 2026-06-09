@@ -1,7 +1,5 @@
 package com.example.mapadetrilhas;
 
-import android.location.Location;
-
 public class Waypoint {
     private long id;
     private int idTrilha;
